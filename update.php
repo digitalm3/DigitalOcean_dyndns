@@ -37,7 +37,7 @@ use Monolog\Handler\StreamHandler;
 //
 $adaptor = new BuzzAdapter('insert_personal_access_token');
 $ocean   = new DigitalOceanV2($adaptor);
-$log     = new Logger('DigitalOcean DynDns');
+$log     = new Logger('DigitalOcean_DynDns');
 $log->pushHandler(new StreamHandler('digitalocean.dyndns.log', Logger::INFO));
 
 //
