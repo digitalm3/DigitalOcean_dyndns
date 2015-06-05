@@ -1,0 +1,8 @@
+{
+    "require": {
+        "kriswallsmith/buzz": "~0.10",
+        "toin0u/digitalocean-v2": "~1.0",
+	"guzzlehttp/guzzle": "~5.0",
+        "monolog/monolog": "^1.13"
+    }
+}

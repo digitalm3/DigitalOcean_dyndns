@@ -14,8 +14,10 @@
 >[monolog/monolog](https://github.com/Seldaek/monolog)    
 
  **Installation**    
- ```$ git clone https://github.com/digitalm3/DigitalOcean_dyndns	
-$ composer install```
+```bash
+$ git clone https://github.com/digitalm3/DigitalOcean_dyndns	
+$ composer install    
+```
 
 **Credits**    
 >Christopher Ferris    
