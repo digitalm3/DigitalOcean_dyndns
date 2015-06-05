@@ -1,19 +1,19 @@
 <?php
 
 // The MIT License (MIT)
-// 
+//
 // Copyright (c) 2015 Christopher Ferris, Richard Dern
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -32,7 +32,7 @@ use Monolog\Handler\StreamHandler;
 //  *** NOTE:
 // Get your Personal Access Token from DigitalOcean
 // https://cloud.digitalocean.com/settings/applications
-// 
+//
 // Modify 'insert_personal_access_token' with your token
 //
 $adaptor = new BuzzAdapter('insert_personal_access_token');
@@ -42,7 +42,7 @@ $log->pushHandler(new StreamHandler('digitalocean.dyndns.log', Logger::INFO));
 
 //
 // *** NOTE: Domain update disabled, change to false when finished testing
-// 
+//
 $disable_update = true;
 
 // FQDN provided by the URL (reguired)
@@ -105,7 +105,14 @@ if (!$result) {
 
 // If $myip matches the IP resolved by DNS no update needed
 if ($myip === $ipFromDNS) {
-    $log->addInfo('Response from DNS matches IP provided, no update required');
+
+    $data = array(
+        'Host'=>$hostname,
+        'New IP'=>$myip,
+	'Old IP'=>$ipFromDNS,
+    );
+
+    $log->addInfo('Response from DNS matches IP provided, no update required', $data);
     die('nochg');
 }
 
@@ -150,7 +157,12 @@ if (!is_array($domainRecords)) {
 }
 
 if (empty($domainRecords)) {
-    $log->addError('Invalid response from DigitalOcean, domain records not found');
+
+    $data = array(
+        'Domain'=>$currentDomain,
+    );
+
+    $log->addError('Invalid response from DigitalOcean, domain records not found', $data);
     die('dnserr');
 }
 
@@ -174,7 +186,12 @@ foreach ($domainRecords as $record) {
 }
 
 if (empty($recordId)) {
-    $log->addError('Invalid response from DigitalOcean, host records not found');
+    $data = array(
+        'Domain'=>$currentDomain,
+        'Host'=>$recordName,
+    );
+
+    $log->addError('Invalid response from DigitalOcean, host records not found', $data);
     die('nohost');
 }
 
@@ -184,10 +201,14 @@ try {
         $recordsAPI->updateData($currentDomain, $recordId, $myip);
     }
 
-    $log->addInfo('Successful response from DigitalOcean, host record updated');
-    $log->addInfo('Domain: ' . $currentDomain);
-    $log->addInfo('Host: ' . $recordName);
-    $log->addInfo('IP Address: ' . $myip);
+    $data = array(
+        'Domain'=>$currentDomain,
+        'Host'=>$recordName,
+        'New IP'=>$myip,
+	'Old IP'=>$ipFromDNS,
+    );
+
+    $log->addInfo('Successful response from DigitalOcean, host record updated', $data);
     die('good');
 } catch (Exception $ex) {
     $log->addError('DigitalOceanV2 Exception');
