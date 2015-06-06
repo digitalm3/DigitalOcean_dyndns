@@ -1,6 +1,6 @@
 ***DigitalOcean DynDns Server***
 
-This is a dyndns (ddns) server that will update DNS records hosted by DigitalOcean.  It "should" be compatible with the dyn.com protocol which makes it work with many newer routers.  I am new to PHP but my very good friend Richard has contributed most of the code, please use caution if you use it.  A log is created in the same folder named digitalocean.dyndns.log.  
+This is a dyndns (ddns) server that will update DNS records hosted by DigitalOcean.  It "should" be compatible with the dyn.com protocol which makes it work with many newer routers.  I am new to PHP but my very good friend, Richard, has contributed a lot of the code.  A log is created in the same folder named digitalocean.dyndns.log, please use caution when using it.
 
 **Requirements**
 
