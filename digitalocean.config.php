@@ -11,6 +11,11 @@
 	// NOTE:
 	// Domain update disabled by default, change to false when finished testing
 
-	$disable_update = true;
+	$disableDigitalOceanUpdate = true;
 	
+	
+	// NOTE:
+	// Set LOG Path & FileName
+	
+	$logFile = "/var/log/DigitalOcean.DynDns.log";
 ?>
