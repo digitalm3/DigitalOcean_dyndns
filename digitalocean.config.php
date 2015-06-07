@@ -17,5 +17,5 @@
 	// NOTE:
 	// Set LOG Path & FileName
 	
-	$logFile = "/var/log/DigitalOcean.DynDns.log";
+	$logFile = "/var/log/dyndns/DigitalOcean.DynDns.log";
 ?>
