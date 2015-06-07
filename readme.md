@@ -11,7 +11,7 @@ This is written in PHP and depends on the following modules which can be install
 * [guzzlehttp/guzzle](https://github.com/guzzle/guzzle)    
 * [monolog/monolog](https://github.com/Seldaek/monolog)    
 
- **Installation**
+**Installation**
  
 ```bash
 $ cd /path/to/webserver

@@ -53,7 +53,7 @@ try {
 		'Exception'=>$ex,
 	);
 	$log->addError('DigitalOceanV2 exception caught in Domain getAll()', $data);
-	die('dnserr');
+	die("dnserr\r\n");
 }
 
 if (array_key_exists('hostname', $_GET)) {
@@ -72,151 +72,174 @@ if (empty($myip)) {
 		'Detected IP'=>$myip,
 	);
 	$log->addWarning('Response from URL, IP not provided attempting to detect', $data);
-	
+
 }
 
 $ipFromDNS = '';
 
-// Find which domain we are working on
-if (empty($hostname)) {
-	$data = array(
-		'URI'=>$_SERVER[REQUEST_URI],
-	);
-	$log->addError('Invalid response from URL, hostname not provided', $data);
-	die('nohost');
-}
-// Append . to hostname for faster resolution
-// Query DNS for matching $hostname
-$result = @checkdnsrr($hostname . '.', 'A');
-if (!$result) {
-	$log->addError('Invalid response from DNS, can\'t resolve hostname');
-	die('nohost');
-} else {
-	// append . to hostname for faster resolution since php dns doesn't have a timeout
-	$records = @dns_get_record($hostname . '.', DNS_A);
+$hostArray = explode(',', $hostname);
+if (is_array($hostArray)) {
+	foreach ($hostArray as $currentHost) {
+		// Find which domain we are working on
+		if (empty($currentHost)) {
+			$data = array(
+				'URI'=>$_SERVER[REQUEST_URI],
+			);
+			$log->addError('Invalid response from URL, hostname not provided', $data);
+			echo("nohost\r\n");
+			continue;
+		}
+		// Append . to hostname for faster resolution
+		// Query DNS for matching $hostname
+		$result = @checkdnsrr($currentHost . '.', 'A');
+		if (!$result) {
+			$log->addError('Invalid response from DNS, can\'t resolve hostname');
+			echo("nohost\r\n");
+			continue;
+		} else {
+			// append . to hostname for faster resolution since php dns doesn't have a timeout
+			$records = @dns_get_record($currentHost . '.', DNS_A);
 
-	if (is_array($records)) {
-		foreach ($records as $record) {
-			if (array_key_exists('ip', $record)) {
-				$ipFromDNS = $record['ip'];
+			if (is_array($records)) {
+				foreach ($records as $record) {
+					if (array_key_exists('ip', $record)) {
+						$ipFromDNS = $record['ip'];
+					}
+				}
 			}
 		}
-	}
-}
 
-// If $myip matches the IP resolved by DNS no update needed
-if ($myip === $ipFromDNS) {
-	$data = array(
-		'Host'=>$hostname,
-		'New IP'=>$myip,
-		'Old IP'=>$ipFromDNS,
-	);
+		// If $myip matches the IP resolved by DNS no update needed
+		if ($myip === $ipFromDNS) {
+			$data = array(
+				'Host'=>$currentHost,
+				'New IP'=>$myip,
+				'Old IP'=>$ipFromDNS,
+			);
 
-	$log->addInfo('Response from DNS matches IP provided, no update required', $data);
-	die('nochg');
-}
-
-// If we get here, an update is required
-// Find which domain we are working on
-$currentDomain = null;
-$recordName    = null;
-$recordId      = null;
-
-foreach ($handledDomains as $domain) {
-	if (stristr($hostname, $domain->name)) {
-		$currentDomain = $domain->name;
-
-		$recordName = trim(str_replace($currentDomain, '', $hostname), '.');
-
-		if (empty($recordName)) {
-			$recordName = '@';
+			$log->addInfo('Response from DNS matches IP provided, no update required', $data);
+			echo("nochg\r\n");
+			continue;
 		}
-		break;
+
+		// If we get here, an update is required
+		// Find which domain we are working on
+		$currentDomain = null;
+		$recordName    = null;
+		$recordId      = null;
+
+		foreach ($handledDomains as $domain) {
+			if (stristr($currentHost, $domain->name)) {
+				$currentDomain = $domain->name;
+
+				$recordName = trim(str_replace($currentDomain, '', $currentHost), '.');
+
+				if (empty($recordName)) {
+					$recordName = '@';
+				}
+				break;
+			}
+		}
+
+		if (empty($currentDomain)) {
+			$log->addError('Invalid response from DigitalOcean, domain not found');
+			echo("dnserr\r\n");
+			continue;
+		}
+
+		// Get the records for this domain from DigitalOcean
+		$recordsAPI    = $ocean->domainRecord();
+		$domainRecords = [];
+		try {
+			$domainRecords = $recordsAPI->getAll($currentDomain);
+		} catch (Exception $ex) {
+			$data = array(
+				'Exception'=>$ex,
+			);
+
+			$log->addError('DigitalOceanV2 exception caught in Domain Records getAll()', $data);
+			echo("dnserr\r\n");
+			continue;
+		}
+
+		if (!is_array($domainRecords)) {
+			$log->addError('Invalid response from DigitalOcean, domain records not found');
+			echo("dnserr\r\n");
+			continue;
+		}
+
+		if (empty($domainRecords)) {
+			$data = array(
+				'Domain'=>$currentDomain,
+			);
+
+			$log->addError('Invalid response from DigitalOcean, domain records not found', $data);
+			echo("dnserr\r\n");
+			continue;
+		}
+
+		foreach ($domainRecords as $record) {
+			// Have to check if name is present in all records
+			if (!array_key_exists('name', $record)) {
+				continue;
+			}
+
+			// We need the id too
+			if (!array_key_exists('id', $record)) {
+				continue;
+			}
+
+			if ($record->name !== $recordName) {
+				continue;
+			}
+
+			$recordId = $record->id;
+			break;
+		}
+
+		if (empty($recordId)) {
+			$data = array(
+				'Domain'=>$currentDomain,
+				'Host'=>$recordName,
+			);
+
+			$log->addError('Invalid response from DigitalOcean, host records not found', $data);
+			echo("nohost\r\n");
+			continue;
+		}
+
+		// Submit record update to DigitalOcean
+		try {
+			if (!$disable_update) {
+				$recordsAPI->updateData($currentDomain, $recordId, $myip);
+			}
+
+			$data = array(
+				'Domain'=>$currentDomain,
+				'Host'=>$recordName,
+				'New IP'=>$myip,
+				'Old IP'=>$ipFromDNS,
+				'Update Disabled'=>$disable_update? 'true' : 'false',
+			);
+
+			$log->addInfo('Successful response from DigitalOcean, host record updated', $data);
+			echo("good\r\n");
+			continue;
+		} catch (Exception $ex) {
+			$data = array(
+				'Exception'=>$ex,
+			);
+			
+			$log->addError('DigitalOceanV2 Exception', $data);
+			echo("dnserr\r\n");
+		}
 	}
-}
-
-if (empty($currentDomain)) {
-	$log->addError('Invalid response from DigitalOcean, domain not found');
-	die('dnserr');
-}
-
-// Get the records for this domain from DigitalOcean
-$recordsAPI    = $ocean->domainRecord();
-$domainRecords = [];
-try {
-	$domainRecords = $recordsAPI->getAll($currentDomain);
-} catch (Exception $ex) {
+} else {
+		$myip = $_SERVER['REMOTE_ADDR'];
 	$data = array(
-		'Exception'=>$ex,
+		'URI'=>$_SERVER[REQUEST_URI],
+		'Hostname'=>$hostname,
 	);
-	
-	$log->addError('DigitalOceanV2 exception caught in Domain Records getAll()', $data);
-	die('dnserr');
-}
-
-if (!is_array($domainRecords)) {
-	$log->addError('Invalid response from DigitalOcean, domain records not found');
-	die('dnserr');
-}
-
-if (empty($domainRecords)) {
-	$data = array(
-		'Domain'=>$currentDomain,
-	);
-	
-	$log->addError('Invalid response from DigitalOcean, domain records not found', $data);
-	die('dnserr');
-}
-
-foreach ($domainRecords as $record) {
-	// Have to check if name is present in all records
-	if (!array_key_exists('name', $record)) {
-		continue;
-	}
-
-	// We need the id too
-	if (!array_key_exists('id', $record)) {
-		continue;
-	}
-
-	if ($record->name !== $recordName) {
-		continue;
-	}
-
-	$recordId = $record->id;
-	break;
-}
-
-if (empty($recordId)) {
-	$data = array(
-		'Domain'=>$currentDomain,
-		'Host'=>$recordName,
-	);
-
-	$log->addError('Invalid response from DigitalOcean, host records not found', $data);
-	die('nohost');
-}
-
-// Submit record update to DigitalOcean
-try {
-	if (!$disable_update) {
-		$recordsAPI->updateData($currentDomain, $recordId, $myip);
-	}
-
-	$data = array(
-		'Domain'=>$currentDomain,
-		'Host'=>$recordName,
-		'New IP'=>$myip,
-		'Old IP'=>$ipFromDNS,
-		'Update Disabled'=>$disable_update? 'true' : 'false',
-	);
-
-	$log->addInfo('Successful response from DigitalOcean, host record updated', $data);
-	die('good');
-} catch (Exception $ex) {
-		$data = array(
-		'Exception'=>$ex,
-	);
-	$log->addError('DigitalOceanV2 Exception', $data);
-	die('dnserr');
+	$log->addWarning('Invalid response from URL, could not detect hostname', $data);
+	die("nohost\r\n");
 }
