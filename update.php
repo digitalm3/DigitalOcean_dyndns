@@ -239,6 +239,14 @@ foreach ($hostArray as $currentHost) {
 		if (!array_key_exists('id', $record)) {
 			continue;
 		}
+		
+		if (!array_key_exists('type', $record)) {
+			continue;
+		}
+
+		if ($record->type !== "A") {
+			continue;
+		}
 
 		if ($record->name !== $recordName) {
 			continue;
